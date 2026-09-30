@@ -33,6 +33,7 @@ TIMEOUT=10000
 | `STEAM_APP_ID` | JSON array containing Steam app IDs |
 | `INTERVAL` | Time between checks in milliseconds |
 | `TIMEOUT` | Steam API request timeout in milliseconds |
+| `NEWS_COUNT` | Number of news items to fetch per interval |
 
 Do not commit `.env` to source control.
 
