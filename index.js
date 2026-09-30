@@ -103,7 +103,7 @@ async function fetchNews(appId) {
 
 async function sendWebhook(newsitem) {
     return client.send({
-        content: `[${newsitem.title}](${newsitem.url})\n<t:${newsitem.date}:F>`.slice(0, 2000)
+        content: `[**${newsitem.title}**](${newsitem.url})\n<t:${newsitem.date}:F>`.slice(0, 2000)
     });
 }
 
