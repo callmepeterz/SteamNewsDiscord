@@ -25,6 +25,7 @@ WEBHOOK_URL=https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
 STEAM_APP_ID=["1973530","570"]
 INTERVAL=300000
 TIMEOUT=10000
+NEWS_COUNT=5
 ```
 
 | Variable | Description |
