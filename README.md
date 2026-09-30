@@ -11,7 +11,7 @@ A small Node.js service that checks Steam app news and posts new announcements t
 ## Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/callmepeterz/SteamNewsDiscord
 cd SteamNewsDiscord
 npm install
 ```
