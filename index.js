@@ -4,12 +4,15 @@ const https = require("node:https");
 const fs = require("node:fs");
 
 const client = new WebhookClient({ url: process.env.WEBHOOK_URL });
-const steam_app_id_list = JSON.parse(process.env.STEAM_APP_ID);
+const steamAppIdList = JSON.parse(process.env.STEAM_APP_ID);
 const interval = parseInt(process.env.INTERVAL);
 const timeout = parseInt(process.env.TIMEOUT);
+const newsCount = parseInt(process.env.NEWS_COUNT);
 
 let latest = {};
 loadLatest();
+
+console.log(`[${new Date().toISOString()}]: Started listening for ${steamAppIdList.toString()}`);
 
 let mainRunning = false;
 
@@ -28,26 +31,46 @@ setInterval(async () => {
 }, interval);
 
 async function main() {
-    for (let appId of steam_app_id_list) {
+    for (const appId of steamAppIdList) {
+        let newsItems;
+
         try {
-            let fetchedNewsString = await fetchNews(appId);
-            let fetchedNews = JSON.parse(fetchedNewsString);
-            let newsitem = fetchedNews?.appnews?.newsitems?.[0];
-            if (!newsitem || checkIfAlreadyPosted(newsitem, latest[appId])) continue;
+            const response = await fetchNews(appId);
+            const fetchedNews = JSON.parse(response);
+            newsItems = fetchedNews?.appnews?.newsitems;
 
-            console.log(`[${new Date().toISOString()}] ${appId}: ${newsitem.title}`);
-            await sendWebhook(newsitem);
-
-            latest[appId] = {
-                gid: newsitem.gid,
-                date: newsitem.date
+            if (!Array.isArray(newsItems)) {
+                throw new Error("Steam response did not contain news items");
             }
-            saveLatest();
         } catch (error) {
-            console.error(`Failed for ${appId}:\n`, error);
+            console.error(`Failed to fetch news for ${appId}:`, error);
+            continue;
+        }
+
+        const newItems = newsItems
+            .filter(newsItem => isNewNewsItem(newsItem, latest[appId]))
+            .sort((first, second) => first.date - second.date);
+
+        for (const newsItem of newItems) {
+            try {
+                await sendWebhook(newsItem);
+
+                latest[appId] = {
+                    gid: newsItem.gid,
+                    date: newsItem.date
+                };
+
+                saveLatest();
+
+                console.log(`[${new Date().toISOString()}] ${appId}: ${newsItem.title}`);
+            } catch (error) {
+                console.error(`Failed to publish ${appId}:`, error);
+                break;
+            }
         }
     }
 }
+
 
 async function fetchNews(appId) {
     return new Promise((resolve, reject) => {
@@ -55,7 +78,7 @@ async function fetchNews(appId) {
 
         const request = https.request({
             hostname: "api.steampowered.com",
-            path: `/ISteamNews/GetNewsForApp/v2?appid=${appId}&count=1`,
+            path: `/ISteamNews/GetNewsForApp/v2?appid=${appId}&count=${newsCount}`,
             method: "GET"
         }, (res) => {
             if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -84,8 +107,15 @@ async function sendWebhook(newsitem) {
     });
 }
 
-function checkIfAlreadyPosted(newsitem, latestnewsitem) {
-    return newsitem?.gid === latestnewsitem?.gid || newsitem?.date < latestnewsitem?.date
+function isNewNewsItem(newsItem, latestNewsItem) {
+    if (!latestNewsItem) {
+        return true;
+    }
+
+    return (
+        newsItem.gid !== latestNewsItem.gid &&
+        newsItem.date > latestNewsItem.date
+    );
 }
 
 function loadLatest() {
